@@ -122,14 +122,15 @@ func (l *list[T]) ReadFrom(reader io.Reader) (int64, error) {
 	count := cap(l.Items)
 	readEOF := count == 0
 
-	for i := 0; readEOF || i < count; i++ {
-		// Create a new instance of the concrete type T for decoding into.
-		var item T
+	// Create a new instance of the concrete type T for decoding into.
+	var item T
 
-		elemType := reflect.TypeOf(item)
-		if elemType.Kind() == reflect.Ptr {
-			elemType = elemType.Elem()
-		}
+	elemType := reflect.TypeOf(item)
+	if elemType.Kind() == reflect.Ptr {
+		elemType = elemType.Elem()
+	}
+
+	for i := 0; readEOF || i < count; i++ {
 		newItem := reflect.New(elemType).Interface().(T)
 
 		// Try to read the next item.

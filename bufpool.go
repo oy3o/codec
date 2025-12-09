@@ -24,3 +24,9 @@ var bufPool = sync.Pool{
 		return &b
 	},
 }
+
+var bytesWriterPool = sync.Pool{
+	New: func() interface{} {
+		return &BytesWriter{}
+	},
+}

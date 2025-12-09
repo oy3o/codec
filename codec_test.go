@@ -74,12 +74,12 @@ func (s *WriterTestSuite) TestBasicWrites() {
 
 	expected := []byte{
 		0xAA,       // WriteUint8
-		0xCC, 0xBB, // WriteUint16 (Little Endian)
-		0x00, 0xFF, 0xEE, 0xDD, // WriteUint32 (Little Endian)
-		0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // WriteUint64 (Little Endian)
+		0xBB, 0xCC, // WriteUint16 (Big Endian)
+		0xDD, 0xEE, 0xFF, 0x00, // WriteUint32 (Big Endian)
+		0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, // WriteUint64 (Big Endian)
 		5, 6, 7, // WriteBytes
 		0, 0, // WriteZeros
-		0xEF, 0xBE, 0xAD, 0xDE, 1, 2, 3, 4, // WriteFrom(codec)
+		0xDE, 0xAD, 0xBE, 0xEF, 1, 2, 3, 4, // WriteFrom(codec)
 	}
 	s.Assert().Equal(expected, s.buf.Bytes())
 }
@@ -123,7 +123,7 @@ func (s *WriterTestSuite) TestErrorHandling() {
 
 		// The underlying BytesWriter received the first 4 bytes, and then 1 byte from
 		// the second write before it ran out of space. The final 0xFF was never written.
-		expected := []byte{0x44, 0x33, 0x22, 0x11, 0xDD}
+		expected := []byte{0x11, 0x22, 0x33, 0x44, 0xaa}
 		assert.Equal(t, expected, fixedBuf)
 
 		// Verify count reflects only what was successfully written to the buffer before the error
@@ -191,9 +191,9 @@ func (s *ReaderTestSuite) TestSuccessfulReads() {
 
 	s.Require().NoError(r.Err())
 	s.Assert().Equal(uint8(0xAA), v8)
-	s.Assert().Equal(uint16(0xBBCC), v16)
-	s.Assert().Equal(uint32(0xDDEEFF00), v32)
-	s.Assert().Equal(uint64(0x0102030405060708), v64)
+	s.Assert().Equal(uint16(0xCCBB), v16)
+	s.Assert().Equal(uint32(0x00FFEEDD), v32)
+	s.Assert().Equal(uint64(0x0807060504030201), v64)
 	s.Assert().Equal([]byte{0x11, 0x22, 0x33}, read)
 
 	// The next read should result in a clean EOF.

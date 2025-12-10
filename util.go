@@ -66,6 +66,10 @@ func CheckTrailingNotZeros(r io.Reader) error {
 		return err
 	}
 
+	return CheckBufferNotZeros(trailingData)
+}
+
+func CheckBufferNotZeros(trailingData []byte) error {
 	// Heuristic check: Did we read more than the allowed padding size?
 	if len(trailingData) > MAX_PADDING {
 		return fmt.Errorf("%w: exceeds maximum expected size of %d bytes", ErrTrailingData, MAX_PADDING)
@@ -77,7 +81,6 @@ func CheckTrailingNotZeros(r io.Reader) error {
 			return fmt.Errorf("%w: found non-zero byte 0x%02x at offset %d", ErrTrailingData, b, i)
 		}
 	}
-
 	return nil
 }
 

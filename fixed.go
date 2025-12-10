@@ -46,25 +46,26 @@ func (c *Fixed[Payload]) Size() int {
 // Note: This method allocates a new byte slice. For performance-critical paths,
 // use `MarshalTo` or `WriteTo` instead.
 func (c *Fixed[Payload]) MarshalBinary() ([]byte, error) {
-	w := bytesWriterPool.Get().(*BytesWriter)
-	w.B = make([]byte, c.Size())
-	w.N = 0
-	defer bytesWriterPool.Put(w)
-
-	if err := binary.Write(w, Order, &c.Payload); err != nil {
-		return nil, err
+	buf := make([]byte, c.Size())
+	if _, err := binary.Encode(buf, Order, &c.Payload); err != nil {
+		return nil, io.ErrShortWrite // binary.Encode only returns unexported buffer too small error, it means fewer bytes were written than expected
 	}
-	return w.Bytes(), nil
+	return buf, nil
 }
 
 // UnmarshalBinary implements the standard `encoding.BinaryUnmarshaler` interface.
 // It calls `CheckTrailingNotZeros` to prevent bugs from truncated or oversized payloads.
 func (c *Fixed[Payload]) UnmarshalBinary(data []byte) error {
-	r := NewBytesReader(data)
-	if err := binary.Read(r, Order, &c.Payload); err != nil {
-		return err
+	n, err := binary.Decode(data, Order, &c.Payload)
+	if err != nil {
+		return ErrTruncatedData // binary.Decode always returns unexported buffer too small error, it means the data is truncated
 	}
-	return CheckTrailingNotZeros(r)
+	if len(data) > n {
+		if err := CheckBufferNotZeros(data[n:]); err != nil {
+			return err // Ensure no trailing zeros in the buffer
+		}
+	}
+	return nil
 }
 
 // ReadFrom implements `io.ReaderFrom` for efficient, allocation-free reading
@@ -90,16 +91,9 @@ func (c *Fixed[Payload]) WriteTo(w io.Writer) (int64, error) {
 // MarshalTo marshals the struct into the provided slice `p`.
 // This is the most performant marshalling option as it avoids memory allocation.
 func (c *Fixed[Payload]) MarshalTo(p []byte) (int, error) {
-	if len(p) < c.Size() {
-		return 0, io.ErrShortBuffer
+	n, err := binary.Encode(p, Order, &c.Payload)
+	if err != nil {
+		return n, io.ErrShortWrite // binary.Encode only returns unexported buffer too small error, it means fewer bytes were written than expected
 	}
-	w := bytesWriterPool.Get().(*BytesWriter)
-	w.B = p
-	w.N = 0
-	defer bytesWriterPool.Put(w)
-
-	if err := binary.Write(w, Order, &c.Payload); err != nil {
-		return 0, err
-	}
-	return w.Len(), nil
+	return n, nil
 }

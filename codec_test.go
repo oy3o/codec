@@ -335,7 +335,7 @@ func TestFixedSizeCodec_Errors(t *testing.T) {
 		c := &mockCodec{}
 		shortBuf := make([]byte, c.Size()-1)
 		_, err := c.MarshalTo(shortBuf)
-		assert.ErrorIs(t, err, io.ErrShortBuffer)
+		assert.ErrorIs(t, err, io.ErrShortWrite)
 	})
 
 	t.Run("UnmarshalWithTruncatedData", func(t *testing.T) {
@@ -344,7 +344,7 @@ func TestFixedSizeCodec_Errors(t *testing.T) {
 		truncatedData := validData[:len(validData)-1]
 
 		err := c.UnmarshalBinary(truncatedData)
-		assert.ErrorIs(t, err, io.ErrUnexpectedEOF)
+		assert.ErrorIs(t, err, ErrTruncatedData)
 	})
 
 	t.Run("UnmarshalWithTrailingData", func(t *testing.T) {

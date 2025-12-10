@@ -38,12 +38,6 @@ func UnmarshalBinaryGeneric[T interface {
 	}
 	expectedSize := v.Size()
 
-	if len(data) > expectedSize {
-		if err := CheckTrailingNotZeros(NewBytesReader(data[expectedSize:])); err != nil {
-			return err
-		}
-	}
-
 	if n < int64(expectedSize) {
 		// Robustness check: Ensure the buffer wasn't truncated.
 		return fmt.Errorf("%w: expected at least %d bytes, but read %d", ErrTruncatedData, expectedSize, n)
@@ -51,7 +45,12 @@ func UnmarshalBinaryGeneric[T interface {
 
 	// Ensure no unexpected trailing data remains.
 	// This prevents parsing ambiguous or potentially malicious payloads.
-	return CheckTrailingNotZeros(r)
+	if len(data) > int(n) {
+		if err := CheckBufferNotZeros(data[n:]); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // ReadFromGeneric provides a generic, non-streaming `io.ReaderFrom` implementation.
@@ -93,7 +92,7 @@ func MarshalToGeneric[T interface {
 }](v T, p []byte) (int, error) {
 	size := v.Size()
 	if len(p) < size {
-		return 0, io.ErrShortBuffer
+		return 0, io.ErrShortWrite
 	}
 	w := NewBytesWriter(p)
 	n, err := v.WriteTo(w)

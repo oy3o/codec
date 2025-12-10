@@ -27,7 +27,7 @@ var _ Codec = (*Fixed[struct{}])(nil)
 // Size returns the fixed size of the struct in bytes.
 // The result is cached to avoid reflection overhead on subsequent calls.
 func (c *Fixed[Payload]) Size() int {
-	bodyType := reflect.TypeOf(c.Payload)
+	bodyType := reflect.TypeOf((*Payload)(nil)).Elem()
 
 	// Attempt to load from the concurrent-safe cache first for performance.
 	if size, ok := sizeCache.Load(bodyType); ok {
@@ -46,11 +46,15 @@ func (c *Fixed[Payload]) Size() int {
 // Note: This method allocates a new byte slice. For performance-critical paths,
 // use `MarshalTo` or `WriteTo` instead.
 func (c *Fixed[Payload]) MarshalBinary() ([]byte, error) {
-	buf := NewBytesWriter(make([]byte, c.Size()))
-	if err := binary.Write(buf, Order, &c.Payload); err != nil {
+	w := bytesWriterPool.Get().(*BytesWriter)
+	w.B = make([]byte, c.Size())
+	w.N = 0
+	defer bytesWriterPool.Put(w)
+
+	if err := binary.Write(w, Order, &c.Payload); err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	return w.Bytes(), nil
 }
 
 // UnmarshalBinary implements the standard `encoding.BinaryUnmarshaler` interface.
@@ -89,7 +93,11 @@ func (c *Fixed[Payload]) MarshalTo(p []byte) (int, error) {
 	if len(p) < c.Size() {
 		return 0, io.ErrShortBuffer
 	}
-	w := NewBytesWriter(p)
+	w := bytesWriterPool.Get().(*BytesWriter)
+	w.B = p
+	w.N = 0
+	defer bytesWriterPool.Put(w)
+
 	if err := binary.Write(w, Order, &c.Payload); err != nil {
 		return 0, err
 	}

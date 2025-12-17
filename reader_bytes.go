@@ -79,6 +79,16 @@ func (r *BytesReader) Seek(offset int64, whence int) (int64, error) {
 	return abs, nil
 }
 
+// Next returns the next n bytes from the reader.
+func (r *BytesReader) Next(n int) []byte {
+	if r.N >= len(r.B) {
+		return nil
+	}
+	b := r.B[r.N : r.N+n]
+	r.N += n
+	return b
+}
+
 // Reset allows the underlying byte slice to be reused.
 func (w *BytesReader) Reset() {
 	w.N = 0

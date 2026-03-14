@@ -3,9 +3,9 @@ module github.com/oy3o/codec
 go 1.25.3
 
 require (
-	github.com/puzpuzpuz/xsync/v4 v4.2.0
+	github.com/puzpuzpuz/xsync/v4 v4.4.0
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/exp v0.0.0-20251209150349-8475f28825e9
+	golang.org/x/exp v0.0.0-20260312153236-7ab1446f8b90
 )
 
 require (

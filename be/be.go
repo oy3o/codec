@@ -1,9 +1,26 @@
 package be
 
 import (
+	"encoding/binary"
 	"io"
 
 	"github.com/oy3o/codec"
+)
+
+var (
+	be           = binary.BigEndian
+	ByteOrder    = be
+	AppendUint16 = be.AppendUint16
+	AppendUint32 = be.AppendUint32
+	AppendUint64 = be.AppendUint64
+	GoString     = be.GoString
+	PutUint16    = be.PutUint16
+	PutUint32    = be.PutUint32
+	PutUint64    = be.PutUint64
+	String       = be.String
+	Uint16       = be.Uint16
+	Uint32       = be.Uint32
+	Uint64       = be.Uint64
 )
 
 type Fixed[Payload any] struct {

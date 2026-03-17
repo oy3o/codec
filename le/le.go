@@ -1,9 +1,26 @@
 package le
 
 import (
+	"encoding/binary"
 	"io"
 
 	"github.com/oy3o/codec"
+)
+
+var (
+	le           = binary.LittleEndian
+	ByteOrder    = le
+	AppendUint16 = le.AppendUint16
+	AppendUint32 = le.AppendUint32
+	AppendUint64 = le.AppendUint64
+	GoString     = le.GoString
+	PutUint16    = le.PutUint16
+	PutUint32    = le.PutUint32
+	PutUint64    = le.PutUint64
+	String       = le.String
+	Uint16       = le.Uint16
+	Uint32       = le.Uint32
+	Uint64       = le.Uint64
 )
 
 type Fixed[Payload any] struct {

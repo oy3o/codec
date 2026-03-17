@@ -95,22 +95,29 @@ func (l *list[T]) Size() int {
 }
 
 // WriteTo efficiently writes the entire list to a writer, handling alignment.
-func (l *list[T]) WriteTo(writer io.Writer) (int64, error) {
+func (l *list[T]) WriteTo(w io.Writer) (int64, error) {
 	if len(l.Items) == 0 {
 		return 0, nil
 	}
 
-	w, _ := NewWriter(writer)
 	lastIndex := len(l.Items) - 1
-
+	n := int64(0)
 	for i, item := range l.Items {
-		w.WriteFrom(item)
+		written, err := item.WriteTo(w)
+		if err != nil {
+			return n, err
+		}
+		n += written
 
 		if i < lastIndex && l.options.Alignment > 1 {
-			w.Align(l.options.Alignment)
+			pad, err := Align(w, n, int64(l.options.Alignment))
+			if err != nil {
+				return n, err
+			}
+			n += pad
 		}
 	}
-	return w.Result()
+	return n, nil
 }
 
 // ReadFrom reads and decodes items into the list from a reader.

@@ -36,46 +36,40 @@ var _ WriterPro = (*Writer)(nil)
 
 // NewWriterSize creates a new Writer with a specified buffer size.
 // It returns an error to prevent double-buffering, a common source of bugs.
-func NewWriterSize(w io.Writer, size int) (*Writer, error) {
+func NewWriterSize[E Endianness](w io.Writer, size int) (*Writer, error) {
 	if w == nil {
 		return nil, ErrNilIO
 	}
+	var e E
 
 	switch bw := w.(type) {
 	// Reuse the underlying buffer if it's already a compatible Writer.
 	case *Writer:
 		if bw.w.Size() >= size {
-			return &Writer{w: bw.w, depth: bw.depth + 1, order: Order}, nil
+			return &Writer{w: bw.w, depth: bw.depth + 1, order: e.ByteOrder()}, nil
 		}
 
 	// prevent unpredictable double-buffering.
 	case *bufio.Writer:
 		if bw.Size() >= size {
-			return &Writer{w: &bufioWriterAdapter{bw}, depth: 1, order: Order}, nil
+			return &Writer{w: &bufioWriterAdapter{bw}, depth: 1, order: e.ByteOrder()}, nil
 		}
 		return nil, ErrAlreadyBuffered
 
 	// underlying is a buf so we don't need buffering
 	case *BytesWriter:
-		return &Writer{w: bw, order: Order}, nil
+		return &Writer{w: bw, order: e.ByteOrder()}, nil
 	case *bytes.Buffer:
-		return &Writer{w: &bytesBufferWriterAdapter{bw}, order: Order}, nil
+		return &Writer{w: &bytesBufferWriterAdapter{bw}, order: e.ByteOrder()}, nil
 	}
 
 	// default use bufio
-	return &Writer{w: &bufioWriterAdapter{bufio.NewWriterSize(w, size)}, order: Order}, nil
+	return &Writer{w: &bufioWriterAdapter{bufio.NewWriterSize(w, size)}, order: e.ByteOrder()}, nil
 }
 
 // NewWriter creates a new Writer with a default buffer size.
-func NewWriter(w io.Writer) (*Writer, error) {
-	return NewWriterSize(w, 0)
-}
-
-// WithByteOrder allows setting a custom byte order and returns
-// the configured for chaining.
-func (w *Writer) WithByteOrder(order binary.ByteOrder) *Writer {
-	w.order = order
-	return w
+func NewWriter[E Endianness](w io.Writer) (*Writer, error) {
+	return NewWriterSize[E](w, 0)
 }
 
 // Close closes the underlying writer if it implements io.Closer.

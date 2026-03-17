@@ -9,13 +9,6 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
-var (
-	BE = binary.BigEndian
-	LE = binary.LittleEndian
-	// Order is default binary order
-	Order = BE
-)
-
 const BUFFER_SIZE = 4096
 
 var (
@@ -37,6 +30,22 @@ func Discard(r io.Reader, n int64) (int64, error) {
 		return int64(skip), err
 	}
 	return io.CopyN(io.Discard, r, n)
+}
+
+func Align(w io.Writer, n, align int64) (int64, error) {
+	if n <= 1 {
+		return 0, nil
+	}
+
+	pad := Roundup(n, align) - n
+	if pad <= BUFFER_SIZE {
+		// To avoid heap allocation for small, common padding sizes.
+		written, err := w.Write(empty[:pad])
+		return int64(written), err
+	}
+
+	// Fallback to the efficient io.CopyN for larger padding.
+	return io.CopyN(w, Zero, pad)
 }
 
 // Roundup rounds n up to the nearest multiple of align.

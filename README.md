@@ -46,7 +46,7 @@ package main
 
 import (
     "fmt"
-    "github.com/oy3o/codec"
+    "github.com/oy3o/codec/be"
 )
 
 // Define your protocol header. Must contain fixed-size fields only.
@@ -59,7 +59,7 @@ type Header struct {
 
 func main() {
     // 1. Create the codec wrapper
-    h := codec.Fixed[Header]{
+    h := be.Fixed[Header]{
         Payload: Header{
             Magic:   0xCAFEBABE,
             Version: 1,
@@ -74,7 +74,7 @@ func main() {
     fmt.Printf("Size: %d bytes, Hex: %x\n", h.Size(), data)
 
     // 3. Unmarshal (Deserialize)
-    var h2 codec.Fixed[Header]
+    var h2 be.Fixed[Header]
     _ = h2.UnmarshalBinary(data)
     fmt.Printf("Decoded: %+v\n", h2.Payload)
 }
@@ -87,7 +87,7 @@ Handle complex network streams with automatic padding alignment.
 ```go
 func handleConnection(conn net.Conn) {
     // 1. Create a buffered Writer
-    w, _ := codec.NewWriter(conn)
+    w, _ := be.NewWriter(conn)
     
     // 2. Fluent Writing (Error Latching)
     // You don't need to check errors after every line.
@@ -96,8 +96,8 @@ func handleConnection(conn net.Conn) {
     
     // 3. Write a List (Align to 4 bytes)
     items := []codec.Codec{
-        &codec.Fixed[Item]{Payload: Item{ID: 1}},
-        &codec.Fixed[Item]{Payload: Item{ID: 2}},
+        &be.Fixed[Item]{Payload: Item{ID: 1}},
+        &be.Fixed[Item]{Payload: Item{ID: 2}},
     }
     list := codec.NewList4(items) // Auto-handles padding between items
     w.WriteFrom(list)

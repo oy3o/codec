@@ -46,7 +46,7 @@ package main
 
 import (
     "fmt"
-    "github.com/oy3o/codec"
+    "github.com/oy3o/codec/be"
 )
 
 // 定义你的协议包头，必须是定长字段
@@ -59,7 +59,7 @@ type Header struct {
 
 func main() {
     // 1. 创建编解码器
-    h := codec.Fixed[Header]{
+    h := be.Fixed[Header]{
         Payload: Header{
             Magic:   0xCAFEBABE,
             Version: 1,
@@ -74,7 +74,7 @@ func main() {
     fmt.Printf("Size: %d bytes, Hex: %x\n", h.Size(), data)
 
     // 3. 反序列化 (Unmarshal)
-    var h2 codec.Fixed[Header]
+    var h2 be.Fixed[Header]
     _ = h2.UnmarshalBinary(data)
     fmt.Printf("Decoded: %+v\n", h2.Payload)
 }
@@ -87,7 +87,7 @@ func main() {
 ```go
 func handleConnection(conn net.Conn) {
     // 1. 创建带缓冲的 Writer
-    w, _ := codec.NewWriter(conn)
+    w, _ := be.NewWriter(conn)
     
     // 2. 链式写入 (错误被内部捕获)
     w.WriteUint32(0xDEADBEEF) // Magic
@@ -95,8 +95,8 @@ func handleConnection(conn net.Conn) {
     
     // 3. 写入列表 (每个元素 4 字节对齐)
     items := []codec.Codec{
-        &codec.Fixed[Item]{Payload: Item{ID: 1}},
-        &codec.Fixed[Item]{Payload: Item{ID: 2}},
+        &be.Fixed[Item]{Payload: Item{ID: 1}},
+        &be.Fixed[Item]{Payload: Item{ID: 2}},
     }
     list := codec.NewList4(items) // 自动处理 Padding
     w.WriteFrom(list)

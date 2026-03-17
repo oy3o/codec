@@ -22,7 +22,7 @@ type mockPayload struct {
 }
 
 // mockCodec is an alias for a FixedSizeCodec using our mockPayload.
-type mockCodec = Fixed[mockPayload]
+type mockCodec = Fixed[mockPayload, BigEndian]
 
 // mockFlushingWriter helps verify that a writer's Flush method is called.
 type mockFlushingWriter struct {
@@ -46,12 +46,12 @@ type WriterTestSuite struct {
 // SetupTest runs before each test in the suite, ensuring a clean state.
 func (s *WriterTestSuite) SetupTest() {
 	s.buf = &bytes.Buffer{}
-	s.writer, _ = NewWriter(s.buf)
+	s.writer, _ = NewWriter[BigEndian](s.buf)
 }
 
 func (s *WriterTestSuite) TestConstructors() {
 	s.T().Run("PanicsOnNilWriter", func(t *testing.T) {
-		_, err := NewWriter(nil)
+		_, err := NewWriter[BigEndian](nil)
 		assert.ErrorIs(t, err, ErrNilIO)
 	})
 }
@@ -88,7 +88,7 @@ func (s *WriterTestSuite) TestErrorHandling() {
 	s.T().Run("ShortBufferError", func(t *testing.T) {
 		// Use a fixed-size buffer to reliably trigger ErrShortWrite.
 		fixedBuf := make([]byte, 5)
-		writer, _ := NewWriter(NewBytesWriter(fixedBuf))
+		writer, _ := NewWriter[BigEndian](NewBytesWriter(fixedBuf))
 
 		writer.WriteUint32(0x11223344) // Writes 4 bytes to buffer, OK.
 		writer.WriteUint32(0xAABBCCDD) // Writes another 4 bytes to buffer, OK.
@@ -101,7 +101,7 @@ func (s *WriterTestSuite) TestErrorHandling() {
 
 	s.T().Run("WriteAfterErrorIsNoOp", func(t *testing.T) {
 		fixedBuf := make([]byte, 5)
-		writer, _ := NewWriter(NewBytesWriter(fixedBuf))
+		writer, _ := NewWriter[BigEndian](NewBytesWriter(fixedBuf))
 
 		writer.WriteUint32(0x11223344) // Success (buffered)
 		writer.WriteUint32(0xAABBCCDD) // Fails during flush, not here.
@@ -136,7 +136,7 @@ func (s *WriterTestSuite) TestErrorHandling() {
 func (s *WriterTestSuite) TestFlush() {
 	// mockFlushingWriter has a custom Flush method we can inspect.
 	mock := &mockFlushingWriter{}
-	writer, _ := NewWriterSize(mock, 128)
+	writer, _ := NewWriterSize[BigEndian](mock, 128)
 	writer.WriteUint8(0xAA)
 
 	// Before flush, data is in the buffer, but not in the underlying writer.
@@ -164,7 +164,7 @@ type ReaderTestSuite struct {
 
 func (s *ReaderTestSuite) TestConstructors() {
 	s.T().Run("PanicsOnNilReader", func(t *testing.T) {
-		_, err := NewReader(nil)
+		_, err := NewReader[BigEndian](nil)
 		assert.ErrorIs(t, err, ErrNilIO)
 	})
 }
@@ -177,7 +177,7 @@ func (s *ReaderTestSuite) TestSuccessfulReads() {
 		0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // uint64
 		0x11, 0x22, 0x33, // raw bytes
 	}
-	r, _ := NewReader(bytes.NewReader(data))
+	r, _ := NewReader[BigEndian](bytes.NewReader(data))
 
 	var v8 uint8
 	var v16 uint16
@@ -205,7 +205,7 @@ func (s *ReaderTestSuite) TestSuccessfulReads() {
 func (s *ReaderTestSuite) TestErrorHandling() {
 	s.T().Run("ReadPastEOF", func(t *testing.T) {
 		data := []byte{0x01, 0x02, 0x03}
-		r, _ := NewReader(bytes.NewReader(data))
+		r, _ := NewReader[BigEndian](bytes.NewReader(data))
 		var v32 uint32
 		r.ReadUint32(&v32) // Attempt to read 4 bytes from a 3-byte source.
 
@@ -216,7 +216,7 @@ func (s *ReaderTestSuite) TestErrorHandling() {
 
 	s.T().Run("ReadAfterErrorIsNoOp", func(t *testing.T) {
 		data := []byte{0x01, 0x02, 0x03}
-		r, _ := NewReader(bytes.NewReader(data))
+		r, _ := NewReader[BigEndian](bytes.NewReader(data))
 		var v32 uint32
 		var v8 uint8
 
@@ -232,7 +232,7 @@ func (s *ReaderTestSuite) TestErrorHandling() {
 
 func (s *ReaderTestSuite) TestInterfaceMethods() {
 	data := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
-	r, _ := NewReader(bytes.NewReader(data))
+	r, _ := NewReader[BigEndian](bytes.NewReader(data))
 
 	s.T().Run("WriteTo", func(t *testing.T) {
 		var buf bytes.Buffer
@@ -243,7 +243,7 @@ func (s *ReaderTestSuite) TestInterfaceMethods() {
 	})
 
 	s.T().Run("WriteToNilWriter", func(t *testing.T) {
-		r, _ := NewReader(bytes.NewReader(data))
+		r, _ := NewReader[BigEndian](bytes.NewReader(data))
 		_, err := r.WriteTo(nil)
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ErrWriteToNil)
@@ -252,7 +252,7 @@ func (s *ReaderTestSuite) TestInterfaceMethods() {
 
 func (s *ReaderTestSuite) TestSeekBehavior() {
 	data := []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}
-	r, _ := NewReader(bytes.NewReader(data)) // bytes.Reader implements io.ReadSeeker
+	r, _ := NewReader[BigEndian](bytes.NewReader(data)) // bytes.Reader implements io.ReadSeeker
 
 	// 1. Seek from start
 	pos, err := r.Seek(3, io.SeekStart)
@@ -279,7 +279,7 @@ func (s *ReaderTestSuite) TestSeekBehavior() {
 
 func (s *ReaderTestSuite) TestForwardOnlySeekerErrors() {
 	// Use a reader that does NOT implement io.Seeker to test our forwardSeeker wrapper.
-	r, _ := NewReader(bytes.NewBuffer(make([]byte, 10))) // bytes.Buffer is not a Seeker
+	r, _ := NewReader[BigEndian](bytes.NewBuffer(make([]byte, 10))) // bytes.Buffer is not a Seeker
 
 	// 1. Seek forward works
 	_, err := r.Seek(5, io.SeekStart)
@@ -291,7 +291,7 @@ func (s *ReaderTestSuite) TestForwardOnlySeekerErrors() {
 	s.Assert().Contains(err.Error(), "unsupported negative offset")
 
 	// 3. Seek with invalid whence fails
-	r, _ = NewReader(bytes.NewBuffer(make([]byte, 10))) // bytes.Buffer is not a Seeker
+	r, _ = NewReader[BigEndian](bytes.NewBuffer(make([]byte, 10))) // bytes.Buffer is not a Seeker
 	_, err = r.Seek(0, io.SeekEnd)
 	s.Require().Error(err)
 	s.Assert().Contains(err.Error(), "unsupported whence")

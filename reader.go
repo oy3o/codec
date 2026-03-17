@@ -42,32 +42,33 @@ type Reader struct {
 var _ ReaderPro = (*Reader)(nil)
 
 // NewReaderSize creates a new Reader with a specified buffer size.
-func NewReaderSize(r io.Reader, size int) (*Reader, error) {
+func NewReaderSize[E Endianness](r io.Reader, size int) (*Reader, error) {
 	if r == nil {
 		return nil, ErrNilIO
 	}
+	var e E
 
 	switch reader := r.(type) {
 	// Reuse the underlying buffer if it's already a compatible Reader.
 	case *Reader:
 		if reader.r.Size() >= size {
-			return &Reader{r: reader.r, order: Order}, nil
+			return &Reader{r: reader.r, order: e.ByteOrder()}, nil
 		}
 
 	// prevent unpredictable double-buffering.
 	case *bufio.Reader:
 		if reader.Size() >= size {
-			return &Reader{r: &bufioReaderAdapter{Reader: reader}, order: Order}, nil
+			return &Reader{r: &bufioReaderAdapter{Reader: reader}, order: e.ByteOrder()}, nil
 		}
 		return nil, ErrAlreadyBuffered
 
 	// underlying is a buf so we don't need buffering
 	case *BytesReader:
-		return &Reader{r: reader, order: Order}, nil
+		return &Reader{r: reader, order: e.ByteOrder()}, nil
 	case *bytes.Reader:
-		return &Reader{r: &bytesReaderAdapter{reader}, order: Order}, nil
+		return &Reader{r: &bytesReaderAdapter{reader}, order: e.ByteOrder()}, nil
 	case *bytes.Buffer:
-		return &Reader{r: &bytesBufferReaderAdapter{Buffer: reader}, order: Order}, nil
+		return &Reader{r: &bytesBufferReaderAdapter{Buffer: reader}, order: e.ByteOrder()}, nil
 	}
 
 	if size < 16 {
@@ -77,20 +78,13 @@ func NewReaderSize(r io.Reader, size int) (*Reader, error) {
 	// default use bufio
 	return &Reader{
 		r:     &bufioReaderAdapter{Reader: bufio.NewReaderSize(r, size), seeker: ForwardSeeker(r)},
-		order: Order,
+		order: e.ByteOrder(),
 	}, nil
 }
 
 // NewReader creates a new Reader with a default buffer size.
-func NewReader(r io.Reader) (*Reader, error) {
-	return NewReaderSize(r, 0)
-}
-
-// WithByteOrder allows setting a custom byte order and returns
-// the configured for chaining.
-func (r *Reader) WithByteOrder(order binary.ByteOrder) *Reader {
-	r.order = order
-	return r
+func NewReader[E Endianness](r io.Reader) (*Reader, error) {
+	return NewReaderSize[E](r, 0)
 }
 
 // Close closes the underlying reader if it implements io.Closer.

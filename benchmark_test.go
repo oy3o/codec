@@ -15,7 +15,7 @@ type BenchmarkPayload struct {
 	Padding [3]byte
 }
 
-type BenchmarkCodec = Fixed[BenchmarkPayload]
+type BenchmarkCodec = Fixed[BenchmarkPayload, BigEndian]
 
 func BenchmarkFixedMarshalBinary(b *testing.B) {
 	c := &BenchmarkCodec{Payload: BenchmarkPayload{ID: 1, Val1: 100}}
@@ -31,7 +31,7 @@ func BenchmarkStandardBinaryEncode(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		buf := make([]byte, binary.Size(payload))
-		_, _ = binary.Encode(buf, Order, &payload)
+		_, _ = binary.Encode(buf, BE, &payload)
 	}
 }
 
@@ -41,7 +41,7 @@ func BenchmarkStandardBinaryEncodeWithSize(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		buf := make([]byte, c.Size())
-		_, _ = binary.Encode(buf, Order, &payload)
+		_, _ = binary.Encode(buf, BE, &payload)
 	}
 }
 
@@ -60,7 +60,7 @@ func BenchmarkStandardBinaryEncodeWithBuf(b *testing.B) {
 	buf := make([]byte, binary.Size(payload))
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, _ = binary.Encode(buf, Order, &payload)
+		_, _ = binary.Encode(buf, BE, &payload)
 	}
 }
 
@@ -81,7 +81,7 @@ func BenchmarkStandardBinaryDecode(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		var c2 BenchmarkPayload
-		_, _ = binary.Decode(data, Order, &c2)
+		_, _ = binary.Decode(data, BE, &c2)
 	}
 }
 
@@ -104,7 +104,7 @@ func BenchmarkStandardBinaryRead(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		r := NewBytesReader(data)
-		_ = binary.Read(r, Order, &c2)
+		_ = binary.Read(r, BE, &c2)
 		_ = binary.Size(c2)
 	}
 }
@@ -122,7 +122,7 @@ func BenchmarkStandardBinaryWrite(b *testing.B) {
 	payload := BenchmarkPayload{ID: 1, Val1: 100}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = binary.Write(io.Discard, Order, &payload)
+		_ = binary.Write(io.Discard, BE, &payload)
 		_ = binary.Size(payload)
 	}
 }
